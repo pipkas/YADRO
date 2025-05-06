@@ -62,7 +62,7 @@ char* read_element(char* line){
 }
 
 
-int* read_lines(FILE* file, int col_count, int** row_names, Cipher** to_be_translated){
+int* read_lines(FILE* file, int col_count, int** row_names, Cipher** to_be_translated, int* row_count){
     int line_num = 1024;
     int* table_values = malloc(col_count * line_num * sizeof(int));
     if (!table_values) {
@@ -75,13 +75,14 @@ int* read_lines(FILE* file, int col_count, int** row_names, Cipher** to_be_trans
         perror("Error in reallocing row_names in malloc function.\n");
         return NULL;
     }
-    *to_be_translated = malloc(col_count * line_num *sizeof(Cipher));
+    *to_be_translated = malloc(col_count * line_num * sizeof(Cipher));
     if (!*to_be_translated) {
         perror("Error in reallocing to_be_translated in malloc function.\n");
         free(*row_names);
         free(table_values);
         return NULL;
     }
+    
 
 
     int cipher_index = 0;
@@ -97,6 +98,7 @@ int* read_lines(FILE* file, int col_count, int** row_names, Cipher** to_be_trans
             if (!table_values) {
                 perror("Error in reallocing table_values in realloc function.\n");
                 free(table_values);
+                free(line);
                 free(*to_be_translated);
                 return NULL;
             }
@@ -104,6 +106,7 @@ int* read_lines(FILE* file, int col_count, int** row_names, Cipher** to_be_trans
             if (!*row_names) {
                 perror("Error in reallocing row_names in realloc function.\n");
                 free(table_values);
+                free(line);
                 free(*to_be_translated);
                 return NULL;
             }
@@ -111,13 +114,14 @@ int* read_lines(FILE* file, int col_count, int** row_names, Cipher** to_be_trans
             if (!*to_be_translated) {
                 perror("Error in reallocing to_be_translated in realloc function.\n");
                 free(*row_names);
+                free(line);
                 free(table_values);
                 free(*to_be_translated);
                 return NULL;
             }
         }
 
-
+        
         char* end_ptr;
         
         for (int num_elem = 0; num_elem <= col_count; num_elem++){
@@ -125,6 +129,7 @@ int* read_lines(FILE* file, int col_count, int** row_names, Cipher** to_be_trans
             if (element == NULL){
                 fprintf(stderr, "Not enough elements in row.\n");
                 free(*to_be_translated);
+                free(line);
                 free(*row_names);
                 free(table_values);
                 return NULL;
@@ -135,39 +140,45 @@ int* read_lines(FILE* file, int col_count, int** row_names, Cipher** to_be_trans
                 fprintf(stderr, "Wrong name of row, you use %c, change it to the number.\n", *end_ptr); 
                 perror("Error with strtol in red_lines function.\n");
                 free(*to_be_translated);
+                free(line);
                 free(*row_names);
                 free(table_values);
                 return NULL;
             }
+            
 
             if (num_elem == 0){
-                *row_names[num_elem] = number;
+                (*row_names)[num_elem] = number;
                 continue;
             }
+            printf("hello %d\n", num_elem);
             
             if (*end_ptr != '\0'){
                 Cipher cur;
-                cur.string = element;
+                cur.string = strdup(element);
                 cur.cell = num_elem + line_index * col_count;
-                *to_be_translated[cipher_index] = cur;
+                (*to_be_translated)[cipher_index] = cur;
                 cipher_index++;
                 continue;
             }
+            
             table_values[(num_elem - 1) + line_index * col_count] = (int)number;
             
         }
+        
         if (read_element(line) != NULL){
             fprintf(stderr, "Too many elements in row.\n");
             free(*to_be_translated);
             free(*row_names);
             free(table_values);
+            free(line);
             return NULL;
         }
 
         free(line);
     }
 
-    
+    *row_count = line_index;
     row_names = malloc(line_num * sizeof(int));
     return table_values;
 }
