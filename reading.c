@@ -5,67 +5,6 @@
 #include <stdio.h>
 #include <string.h>
 
-
-void clean_line(char* line, int* line_size) {
-    char* end = line + *line_size;
-    if (end > line && *(end-1) == '\n' ) {
-        *(--end) = '\0';
-        (*line_size)--;
-    }
-    if (end > line && *(end-1) == '\r') {
-        *(--end) = '\0';
-        (*line_size)--;
-    }
-}
-
-char* read_line(FILE* file, int *size, int *is_error){
-    
-    int line_size = 1024;
-    char* line = malloc(line_size * sizeof(char));
-    if (!line) {
-        perror("Error in reallocing line in malloc function.\n");
-        *is_error = ERROR;
-        return NULL;
-    }
-    int is_end = NOT_ENOUGH;
-    int shift = 0;
-    int iter_num = 1;
-    int pos = ftell(file);
-
-    while (is_end != SUCCESS){
-        char* line_ptr = fgets(line + shift, line_size - shift, file);
-        if (feof(file)){
-            free(line);
-            *is_error = SUCCESS;
-            return NULL;
-        }
-        if (line_ptr == NULL) {
-            perror("Input error in function 'fgets'.\n");
-            free(line);
-            *is_error = ERROR;
-            return NULL;
-        }
-        int diff = ftell(file) - pos;
-        if ((diff == line_size - 1) && (line[diff - 1] != '\n')){
-            shift = line_size;
-            line_size *= 2;
-            line = realloc(line, line_size * sizeof(char));
-            if (!line) {
-                perror("Error in reallocing line in realloc function.\n");
-                *is_error = ERROR;
-                return NULL;
-            }
-            continue;
-        }
-        is_end = SUCCESS;
-    }
-    line_size = ftell(file) - pos;
-    *size = line_size;
-    clean_line(line, &line_size);
-    *is_error = SUCCESS;
-    return line;
-}
-
 void ptr_swap(char** line_ptr, char** sym_ptr) {
     char* save_ptr = *sym_ptr;
     *sym_ptr = *line_ptr;
@@ -112,11 +51,9 @@ int fill_row(int* table_values, int col_count, char* line, int* row_names, Ciphe
 
         if (num_elem == 0){
             row_names[line_index] = (int)number;
-            //printf("%ld\n", number);
             continue;
         }
-        //printf("%ld\n", number);
-        table_values[(num_elem - 1) + line_index * col_count] = (int)number;   
+        table_values[(num_elem - 1) + (line_index - 1) * col_count] = (int)number;   
     }
     return SUCCESS;
 }
@@ -216,48 +153,3 @@ int* read_lines(FILE* file, int col_count, int** row_names, Cipher** to_be_trans
 }
 
 
-char** read_col_names(FILE* file , int* col_count){
-
-    fseek(file, 0, SEEK_SET);
-    int line_size;
-    int is_error;
-    char* line = read_line(file, &line_size, &is_error);
-    if (line == NULL)
-        return NULL;
-
-    int col_index = 0;
-
-    if (line[0] != ','){
-        fprintf(stderr, "Wrong input data. You have to leave empty cell in the upper left corner.\n");
-        free(line);
-        return NULL;
-    }
-
-    char** col_names = malloc(line_size * sizeof(char*));
-    if (!col_names) {
-        perror("Error in reallocing col_names in malloc function.\n");
-        free(line);
-        return NULL;
-    }
-    col_names[0] = line;    //we have to free memory after all
-
-    char* found_sym = strchrnul(line, ',');
-    while (found_sym != NULL){
-        *found_sym = '\0';
-        found_sym++;
-        ptr_swap(&found_sym, &line);
-        int is_error = check_col_name(found_sym);
-        if (is_error == ERROR){
-            free(line);
-            free(col_names);
-            return NULL;
-        }
-        col_names[col_index] = found_sym;
-        col_index++;
-        found_sym = strchr(line, ',');
-    }
-    col_names[col_index] = line;
-
-    *col_count = col_index;
-    return col_names;
-}

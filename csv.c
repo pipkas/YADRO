@@ -4,20 +4,6 @@
 #include <stdio.h>
 #include <string.h>
 
-
-int check_col_name(char* col_name){
-    for (int name_pos = 0; col_name[name_pos] != '\0'; name_pos++){
-        int tolower_c = tolower(col_name[name_pos]);
-        if (tolower_c < 'a' || tolower_c > 'z'){
-            fprintf(stderr, "Wrong format of the csv file, you have incorrect sumbols in columns names.\n");
-            return ERROR;
-        }
-    }
-    return SUCCESS;
-}
-
-
-
 int show_csv_file(FILE* file){
     int col_count;
     char** col_names = read_col_names(file, &col_count);
@@ -33,12 +19,7 @@ int show_csv_file(FILE* file){
         free(col_names);
         return ERROR;
     }
-    for (int i = 0; i <= col_count; i++)
-        printf("%s ", col_names[i]);
-    printf("\n");
-    for (int i = 0; i <= row_count; i++)
-        printf("%d ", row_names[i]);
-    
+    print_table(col_count, row_count, row_names,col_names, table_data);
     free(row_names);
     free(to_be_translated);
     free(table_data);
