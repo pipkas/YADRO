@@ -1,15 +1,30 @@
+#define _GNU_SOURCE
 #include "csv.h"
 #include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
-char* read_line(FILE* file, int *size){
+
+void clean_line(char* line, int* line_size) {
+    char* end = line + *line_size;
+    if (end > line && *(end-1) == '\n' ) {
+        *(--end) = '\0';
+        (*line_size)--;
+    }
+    if (end > line && *(end-1) == '\r') {
+        *(--end) = '\0';
+        (*line_size)--;
+    }
+}
+
+char* read_line(FILE* file, int *size, int *is_error){
     
     int line_size = 1024;
     char* line = malloc(line_size * sizeof(char));
     if (!line) {
         perror("Error in reallocing line in malloc function.\n");
+        *is_error = ERROR;
         return NULL;
     }
     int is_end = NOT_ENOUGH;
@@ -21,11 +36,13 @@ char* read_line(FILE* file, int *size){
         char* line_ptr = fgets(line + shift, line_size - shift, file);
         if (feof(file)){
             free(line);
+            *is_error = SUCCESS;
             return NULL;
         }
         if (line_ptr == NULL) {
             perror("Input error in function 'fgets'.\n");
             free(line);
+            *is_error = ERROR;
             return NULL;
         }
         int diff = ftell(file) - pos;
@@ -35,15 +52,17 @@ char* read_line(FILE* file, int *size){
             line = realloc(line, line_size * sizeof(char));
             if (!line) {
                 perror("Error in reallocing line in realloc function.\n");
+                *is_error = ERROR;
                 return NULL;
             }
             continue;
         }
         is_end = SUCCESS;
     }
-    line_size *= iter_num;
+    line_size = ftell(file) - pos;
     *size = line_size;
-
+    clean_line(line, &line_size);
+    *is_error = SUCCESS;
     return line;
 }
 
@@ -53,12 +72,72 @@ void ptr_swap(char** line_ptr, char** sym_ptr) {
     *line_ptr = save_ptr;
 }
 
-char* read_element(char* line){
-    char* found_sym = strchr(line, ',');
+char* read_element(char** line){
+    if (*line == NULL || **line == '\0')
+        return NULL;
+
+    char* found_sym = strchrnul(*line, ',');
     *found_sym = '\0';
-    found_sym++;
-    ptr_swap(&found_sym, &line);
-    return found_sym;
+    char* result_ptr = *line;
+    *line = found_sym + 1;
+    return result_ptr;
+}
+
+
+int fill_row(int* table_values, int col_count, char* line, int* row_names, Cipher* to_be_translated, 
+    int* cipher_index, int line_index){
+
+    for (int num_elem = 0; num_elem <= col_count; num_elem++){
+        char* element = read_element(&line);
+        if (element == NULL){
+            fprintf(stderr, "Not enough elements in row.\n");
+            return ERROR;
+        }
+        char* end_ptr;
+        long number = strtol(element, &end_ptr, 10);
+        if (*end_ptr != '\0'){
+            if (num_elem == 0){
+                fprintf(stderr, "Wrong name of row, you use %c, change it to the number.\n", *end_ptr); 
+                perror("Error with strtol in red_lines function.\n");
+                return ERROR;
+            }
+            
+            Cipher cur;
+            cur.string = strdup(element);
+            cur.cell = num_elem + line_index * col_count;
+            to_be_translated[*cipher_index] = cur;
+            (*cipher_index)++;
+            continue;
+        }
+
+        if (num_elem == 0){
+            row_names[line_index] = (int)number;
+            //printf("%ld\n", number);
+            continue;
+        }
+        //printf("%ld\n", number);
+        table_values[(num_elem - 1) + line_index * col_count] = (int)number;   
+    }
+    return SUCCESS;
+}
+
+static int reallocing_memory(int* table_values, int* row_names, Cipher* to_be_translated, int line_count, int col_count){
+    table_values = realloc(table_values, line_count * col_count * sizeof(int));
+    if (!table_values) {
+        perror("Error in reallocing table_values in realloc function.\n");
+        return ERROR;
+    }
+    row_names = realloc(row_names, line_count * sizeof(int));
+    if (!row_names) {
+        perror("Error in reallocing row_names in realloc function.\n");
+        return ERROR;
+    }
+    to_be_translated = realloc(to_be_translated, line_count * col_count * sizeof(Cipher));
+    if (!to_be_translated) {
+        perror("Error in reallocing to_be_translated in realloc function.\n");
+        return ERROR;
+    }
+    return SUCCESS;
 }
 
 
@@ -82,37 +161,19 @@ int* read_lines(FILE* file, int col_count, int** row_names, Cipher** to_be_trans
         free(table_values);
         return NULL;
     }
-    
 
-
+    int is_error;
     int cipher_index = 0;
     int line_index = 0;
-    while(!feof(file)){
-
-        int line_size;
-        char* line = read_line(file, &line_size);
+    int line_size;
+    char* line;
+    while((line = read_line(file, &line_size, &is_error))){
+            
         line_index++;
-        if (line_index >= line_num){
+        if (line_index > line_num){
             line_num *= 2;
-            table_values = realloc(table_values, col_count * line_num * sizeof(int));
-            if (!table_values) {
-                perror("Error in reallocing table_values in realloc function.\n");
-                free(table_values);
-                free(line);
-                free(*to_be_translated);
-                return NULL;
-            }
-            *row_names = realloc(table_values, col_count * line_num * sizeof(int));
-            if (!*row_names) {
-                perror("Error in reallocing row_names in realloc function.\n");
-                free(table_values);
-                free(line);
-                free(*to_be_translated);
-                return NULL;
-            }
-            *to_be_translated = realloc(*to_be_translated, col_count * line_num * sizeof(Cipher));
-            if (!*to_be_translated) {
-                perror("Error in reallocing to_be_translated in realloc function.\n");
+            is_error = reallocing_memory(table_values, *row_names, *to_be_translated, line_num, col_count);
+            if (is_error == ERROR){
                 free(*row_names);
                 free(line);
                 free(table_values);
@@ -120,53 +181,18 @@ int* read_lines(FILE* file, int col_count, int** row_names, Cipher** to_be_trans
                 return NULL;
             }
         }
-
         
         char* end_ptr;
-        
-        for (int num_elem = 0; num_elem <= col_count; num_elem++){
-            char* element = read_element(line);
-            if (element == NULL){
-                fprintf(stderr, "Not enough elements in row.\n");
-                free(*to_be_translated);
-                free(line);
-                free(*row_names);
-                free(table_values);
-                return NULL;
-            }
-            long number = strtol(element, &end_ptr, 10);
-
-            if (num_elem == 0 && *end_ptr != '\0'){
-                fprintf(stderr, "Wrong name of row, you use %c, change it to the number.\n", *end_ptr); 
-                perror("Error with strtol in red_lines function.\n");
-                free(*to_be_translated);
-                free(line);
-                free(*row_names);
-                free(table_values);
-                return NULL;
-            }
-            
-
-            if (num_elem == 0){
-                (*row_names)[num_elem] = number;
-                continue;
-            }
-            printf("hello %d\n", num_elem);
-            
-            if (*end_ptr != '\0'){
-                Cipher cur;
-                cur.string = strdup(element);
-                cur.cell = num_elem + line_index * col_count;
-                (*to_be_translated)[cipher_index] = cur;
-                cipher_index++;
-                continue;
-            }
-            
-            table_values[(num_elem - 1) + line_index * col_count] = (int)number;
-            
+        is_error = fill_row(table_values, col_count, line, *row_names, *to_be_translated, &cipher_index, line_index);
+        if (is_error == ERROR){
+            free(*row_names);
+            free(line);
+            free(table_values);
+            free(*to_be_translated);
+            return NULL;
         }
-        
-        if (read_element(line) != NULL){
+        char* line_end = line + line_size - 1;
+        if (read_element(&line_end) != NULL){
             fprintf(stderr, "Too many elements in row.\n");
             free(*to_be_translated);
             free(*row_names);
@@ -174,12 +200,18 @@ int* read_lines(FILE* file, int col_count, int** row_names, Cipher** to_be_trans
             free(line);
             return NULL;
         }
-
+        
         free(line);
+    }
+    if (is_error == ERROR){
+        free(*row_names);
+        free(line);
+        free(table_values);
+        free(*to_be_translated);
+        return NULL;
     }
 
     *row_count = line_index;
-    row_names = malloc(line_num * sizeof(int));
     return table_values;
 }
 
@@ -188,7 +220,8 @@ char** read_col_names(FILE* file , int* col_count){
 
     fseek(file, 0, SEEK_SET);
     int line_size;
-    char* line = read_line(file, &line_size);
+    int is_error;
+    char* line = read_line(file, &line_size, &is_error);
     if (line == NULL)
         return NULL;
 
@@ -208,7 +241,7 @@ char** read_col_names(FILE* file , int* col_count){
     }
     col_names[0] = line;    //we have to free memory after all
 
-    char* found_sym = strchr(line, ',');
+    char* found_sym = strchrnul(line, ',');
     while (found_sym != NULL){
         *found_sym = '\0';
         found_sym++;

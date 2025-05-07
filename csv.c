@@ -16,6 +16,8 @@ int check_col_name(char* col_name){
     return SUCCESS;
 }
 
+
+
 int show_csv_file(FILE* file){
     int col_count;
     char** col_names = read_col_names(file, &col_count);
@@ -32,7 +34,10 @@ int show_csv_file(FILE* file){
         return ERROR;
     }
     for (int i = 0; i <= col_count; i++)
-    printf("%s\n", col_names[i]);
+        printf("%s ", col_names[i]);
+    printf("\n");
+    for (int i = 0; i <= row_count; i++)
+        printf("%d ", row_names[i]);
     
     free(row_names);
     free(to_be_translated);
