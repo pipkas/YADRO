@@ -26,7 +26,7 @@ char* read_line(FILE* file, int *size, int *is_error){
     }
     int is_end = NOT_ENOUGH;
     int shift = 0;
-    int iter_num = 1;
+    //int iter_num = 1;
     int pos = ftell(file);
 
     while (is_end != SUCCESS){

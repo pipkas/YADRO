@@ -1,6 +1,5 @@
 #define _GNU_SOURCE
 #include "csv.h"
-#include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -23,7 +22,7 @@ char* read_element(char** line){
 }
 
 
-int fill_row(int* table_values, int col_count, char* line, int* row_names, Cipher* to_be_translated, 
+static int fill_row(int* table_values, int col_count, char* line, int* row_names, Cipher* to_be_translated, 
     int* cipher_index, int line_index){
 
     for (int num_elem = 0; num_elem <= col_count; num_elem++){
@@ -119,7 +118,6 @@ int* read_lines(FILE* file, int col_count, int** row_names, Cipher** to_be_trans
             }
         }
         
-        char* end_ptr;
         is_error = fill_row(table_values, col_count, line, *row_names, *to_be_translated, &cipher_index, line_index);
         if (is_error == ERROR){
             free(*row_names);
