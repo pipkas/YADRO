@@ -4,6 +4,7 @@
 #include "csv.h"
 
 int main(int argc, char* argv[]){
+    
     if (argc != 2){
         fprintf(stderr, "Wrong number of input elements! \nYou have to write a csv file name.\n");
         return ERROR;
@@ -16,8 +17,9 @@ int main(int argc, char* argv[]){
         perror("Error in function fopen");
         return ERROR;
     }
-
+    
     int is_error = show_csv_file(file);
+    
     if (is_error == ERROR){
         fclose(file);
         return ERROR;

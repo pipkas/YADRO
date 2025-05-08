@@ -1,7 +1,20 @@
+#define _GNU_SOURCE
 #include "csv.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
+
+char* read_element(char** line){
+    if (*line == NULL || **line == '\0')
+        return NULL;
+
+    char* found_sym = strchrnul(*line, ',');
+    *found_sym = '\0';
+    char* result_ptr = *line;
+    *line = found_sym + 1;
+    return result_ptr;
+}
 
 static void clean_line(char* line, int* line_size) {
     char* end = line + *line_size;
@@ -26,7 +39,7 @@ char* read_line(FILE* file, int *size, int *is_error){
     }
     int is_end = NOT_ENOUGH;
     int shift = 0;
-    //int iter_num = 1;
+
     int pos = ftell(file);
 
     while (is_end != SUCCESS){
