@@ -1,10 +1,14 @@
-#define _GNU_SOURCE
 #include "csv.h"
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
 
+
+char* my_strchrnul(const char *s, int c) {
+    char *p = strchr(s, c);
+    return p ? p : (char *)s + strlen(s);
+}
 
 static void ptr_swap(char** line_ptr, char** sym_ptr) {
     char* save_ptr = *sym_ptr;
@@ -67,7 +71,7 @@ char** read_col_names(FILE* file , int* col_count){
     }
     col_names[0] = line;
 
-    char* found_sym = strchrnul(line, ',');
+    char* found_sym = my_strchrnul(line, ',');
     while (found_sym != NULL){
         *found_sym = '\0';
         found_sym++;

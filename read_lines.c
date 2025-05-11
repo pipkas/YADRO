@@ -4,10 +4,10 @@
 #include <string.h>
 
 
-
 static int fill_row(int* table_values, int col_count, char* line, int* row_names, Cipher* to_be_translated, 
     int* cipher_index, int line_index){
 
+    int cipher_num = *cipher_index;
     for (int num_elem = 0; num_elem <= col_count; num_elem++){
         char* element = read_element(&line);
         if (element == NULL){
@@ -25,10 +25,11 @@ static int fill_row(int* table_values, int col_count, char* line, int* row_names
             
             Cipher cur;
             cur.string = strdup(element);   //we have to free memory!!!!
-            cur.cell = num_elem + line_index * col_count;
-            to_be_translated[*cipher_index] = cur;
-            (*cipher_index)++;
-            continue;
+            cur.cell = (num_elem - 1) + (line_index - 1) * col_count;
+            to_be_translated[cipher_num] = cur;
+            
+            
+            cipher_num++;
         }
 
         if (num_elem == 0){
@@ -39,10 +40,11 @@ static int fill_row(int* table_values, int col_count, char* line, int* row_names
                 return ERROR;
             }
             row_names[line_index] = (int)number;
-            continue;
         }
-        table_values[(num_elem - 1) + (line_index - 1) * col_count] = (int)number;   
+        if (num_elem != 0 && *end_ptr == '\0')
+            table_values[(num_elem - 1) + (line_index - 1) * col_count] = (int)number;   
     }
+    *cipher_index = cipher_num;
     return SUCCESS;
 }
 
@@ -99,45 +101,37 @@ int* read_lines(FILE* file, int col_count, int** row_names, Cipher** to_be_trans
         if (line_index > line_num){
             line_num *= 2;
             is_error = reallocing_memory(table_values, *row_names, *to_be_translated, line_num, col_count);
-            if (is_error == ERROR){
-                free(*row_names);
-                free(line);
-                free(table_values);
-                free_cipher(*to_be_translated, *cipher_count);
-                return NULL;
-            }
+            if (is_error == ERROR)
+                goto free_memory;  
         }
         
         is_error = fill_row(table_values, col_count, line, *row_names, *to_be_translated, &cipher_index, line_index);
-        if (is_error == ERROR){
-            free(*row_names);
-            free(line);
-            free(table_values);
-            free_cipher(*to_be_translated, *cipher_count);
-            return NULL;
-        }
+        
+        if (is_error == ERROR)
+            goto free_memory;
+        
         char* line_end = line + line_size - 1;
         if (read_element(&line_end) != NULL){
             fprintf(stderr, "Too many elements in row.\n");
-            free_cipher(*to_be_translated, *cipher_count);
-            free(*row_names);
-            free(table_values);
-            free(line);
-            return NULL;
+            goto free_memory;
         }
         
         free(line);
     }
-    if (is_error == ERROR){
-        free(*row_names);
-        free(line);
-        free(table_values);
-        free_cipher(*to_be_translated, *cipher_count);
-        return NULL;
-    }
+    if (is_error == ERROR)
+        goto free_memory;
+    
     *cipher_count = cipher_index;
     *row_count = line_index;
+    
     return table_values;
+
+free_memory:
+    free(*row_names);
+    free(line);
+    free(table_values);
+    free_cipher(*to_be_translated, cipher_index);
+    return NULL;
 }
 
 

@@ -23,9 +23,8 @@ int show_csv_file(FILE* file){
         return ERROR;
     }
     int is_error = SUCCESS;
-    // if (cipher_count != 0)
-    //     is_error = translate_cipher(to_be_translated, table_data, row_names, col_names, row_count, col_count, cipher_count);
-    
+    if (cipher_count != 0)
+        is_error = translate_cipher(to_be_translated, table_data, row_names, col_names, row_count, col_count, cipher_count);
     if (is_error != ERROR)
         print_table(col_count, row_count, row_names, col_names, table_data);
 

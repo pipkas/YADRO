@@ -1,4 +1,3 @@
-#define _GNU_SOURCE
 #include "csv.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,7 +8,7 @@ char* read_element(char** line){
     if (*line == NULL || **line == '\0')
         return NULL;
 
-    char* found_sym = strchrnul(*line, ',');
+    char* found_sym = my_strchrnul(*line, ',');
     *found_sym = '\0';
     char* result_ptr = *line;
     *line = found_sym + 1;
